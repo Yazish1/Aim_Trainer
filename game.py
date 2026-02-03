@@ -23,8 +23,7 @@ class Target:
         self.size = 0
         self.grow = True
     
-
-    def update(self):
+    def update_size(self):
         if self.size + self.growth_rate >= self.maximum_size:
             self.grow = False
         
@@ -39,6 +38,13 @@ class Target:
         pygame.draw.circle(window, self.color, (self.x, self.y), int(self.size * 0.6))
         pygame.draw.circle(window, self.secondary_color, (self.x, self.y), int(self.size * 0.4))
 
+    def hitbox_hit(self, x, y):
+        distance = math.sqrt((self.x - x)**2 + (self.y - y)**2)
+        if distance <= self.size:
+            return True
+        else:
+            return False
+
 def draw_hitboxes(window, hitboxes):
     window.fill("black")
     for hitbox in hitboxes:
@@ -48,9 +54,19 @@ def main():
     playing = True
     hitboxes = []
     frames = pygame.time.Clock()
+
+    # For user
+    score = 0
+    clicks = 0
+    start = time.time()
+    miss = 0
+
     pygame.time.set_timer(target_event, timer)
+    
     while playing:
         frames.tick(60)
+        click = False
+        mouse_position = pygame.mouse.get_pos()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 playing = False
@@ -61,8 +77,20 @@ def main():
                 height-target_padding)
                 hitbox = Target(x,y)
                 hitboxes.append(hitbox)
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                click = True
+                clicks += 1
+
         for hitbox in hitboxes:
-            hitbox.update()
+            hitbox.update_size()
+            if hitbox.size <= 0:
+                hitboxes.remove(hitbox)
+                miss += 1
+            
+            if click and hitbox.hitbox_hit(mouse_position[0], mouse_position[1]):
+                hitboxes.remove(hitbox)
+                score += 1
         draw_hitboxes(window, hitboxes)
 
     pygame.quit()
