@@ -14,6 +14,7 @@ levels = {
 width, height = 800, 600
 sc_height = 40
 font = pygame.font.SysFont("Arial", 16)
+score_threshold = 30
 
 window = pygame.display.set_mode((width, height))
 pygame.display.set_caption("Aim Train")
@@ -59,13 +60,30 @@ def level_select_screen(window):
     window.fill("#0f172a")
     title_font = pygame.font.SysFont("Arial", 48, bold=True)
     info_font = pygame.font.SysFont("Arial", 30)
-
+    escape_button_font = pygame.font.SysFont("Arial", 16)
     title = title_font.render("Select Level", True, "#e5e7eb")
     window.blit(title, (width//2-title.get_width()//2,100))
 
+    esc_button = escape_button_font.render("press ESC to exit", True,"#94a3b8")
+    window.blit(esc_button, (width//2-esc_button.get_width()//2,550))
+
     buttons = []
+    # Deal with spacing
+    button_width = 100
+    button_height = 50
+    spacing = 20
+    num_buttons = 4
+    total_height = num_buttons*button_height + (num_buttons-1)*spacing
+    start_y = height//2 - total_height//2
+
     for i in range(1,5):
-        rect = pygame.Rect(width//2-50,180+(i-1)*70,100,50)
+        rect = pygame.Rect(
+            width//2 - button_width // 2,
+            start_y + (i-1) * (button_height+spacing),
+            button_width,
+            button_height
+        )
+        
         pygame.draw.rect(window, "#1e293b", rect)
         level_text = info_font.render(f"LEVEL {i}", True, "#cbd5f5")
         window.blit(level_text, (rect.centerx - level_text.get_width()//2, rect.centery - level_text.get_height()//2))
@@ -77,6 +95,9 @@ def level_select_screen(window):
     while selecting:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 pygame.quit()
                 exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -99,97 +120,113 @@ def scorecard(window, elapsed_t, score, miss, level_data):
 
     sc_score = font.render(f"Score: {score}", True, "#b7c9d4")
     sc_hp = font.render(f"HP: {level_data['hp']-miss}", True, "#b7c9d4")
-    window.blit(sc_time, (5,5))
-    window.blit(sc_score, (200,5))
-    window.blit(sc_hp, (400,5))
+    window.blit(sc_time, (width*0.17-sc_time.get_width()//2, 5))
+    window.blit(sc_score, (width*0.50-sc_time.get_width()//2, 5))
+    window.blit(sc_hp, (width*0.83-sc_time.get_width()//2, 5))
+
 def draw_hitboxes(window, hitboxes):
     window.fill("#020617")
     for hitbox in hitboxes:
         hitbox.draw(window)
 
+def play_level(window, level_num, level_data):
+        # Chosen level:
+        hp = level_data["hp"]
+        timer = level_data["timer"]
+        
+        # Game setup:
+        playing = True
+        hitboxes = []
+        frames = pygame.time.Clock()
+        score = 0
+        clicks = 0
+        miss = 0
+        start = time.time()
 
-def game_over_screen(window, score, clicks, elapsed_t):
+        pygame.time.set_timer(target_event, timer)
+        
+        while playing:
+            frames.tick(60)
+            click = False
+            mouse_position = pygame.mouse.get_pos()
+            time_elapsed = time.time() - start
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    exit()
+                if event.type == target_event:
+                    x = random.randint(target_padding,width-target_padding)
+                    y = random.randint(sc_height + target_padding,
+                    height-target_padding)
+                    hitbox = Target(x,y, level_data)
+                    hitboxes.append(hitbox)
+                
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    click = True
+                    clicks += 1
+
+            for hitbox in hitboxes[:]:
+                hitbox.update_size()
+                if hitbox.size <= 0:
+                    hitboxes.remove(hitbox)
+                    miss += 1
+                
+                if click and hitbox.hitbox_hit(mouse_position[0], mouse_position[1]):
+                    hitboxes.remove(hitbox)
+                    score += 1
+            if score >= score_threshold:
+                return True, score, clicks, time_elapsed
+            if miss >= hp:
+                return False, score, clicks, time_elapsed
+
+            draw_hitboxes(window, hitboxes)
+            scorecard(window, time_elapsed, score, miss, level_data)
+            pygame.display.update()
+        
+def game_over_screen(window, score, clicks, elapsed_t, won=False):
     window.fill("#0f172a")
     title_font = pygame.font.SysFont("Arial", 48, bold=True)
     info_font = pygame.font.SysFont("Arial", 22)
-    title = title_font.render("GAME OVER", True, "#e5e7eb")
+    
+    title_text = "CONGRATULATIONS!" if won else "GAME OVER"
+    title = title_font.render(title_text, True, "#e5e7eb")
+    window.blit(title, (width // 2 - title.get_width() // 2, 180))
+    
     score_text = info_font.render(f"Score: {score}", True, "#cbd5f5")
     acc = round((score / clicks) * 100,1) if clicks else 0
     accuracy = info_font.render(f"Accuracy: {acc}%", True, "#cbd5f5")
-    time_text = info_font.render(
-    f"Time: {format_time(elapsed_t)}", True, "#cbd5f5")
-    exit_text = info_font.render("Press ESC to quit", True, "#94a3b8")
-
-    window.blit(title, (width // 2 - title.get_width() // 2, 180))
+    time_text = info_font.render(f"Time: {format_time(elapsed_t)}", True, "#cbd5f5")
+    exit_text = info_font.render("Left Click on your mouse to return to level select, ESC to exit", True, "#cbd5f5")
+    
     window.blit(score_text, (width // 2 - score_text.get_width() // 2, 260))
     window.blit(accuracy, (width // 2 - accuracy.get_width() // 2, 295))
     window.blit(time_text, (width // 2 - time_text.get_width() // 2, 330))
     window.blit(exit_text, (width // 2 - exit_text.get_width() // 2, 380))
-
     pygame.display.update()
 
-    waiting = True
-    while waiting:
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                waiting = False
+                return "exit"
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                waiting = False
+                return "exit"
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    return "level_select"
 
 def main():
-    # Chosen level:
-    level = level_select_screen(window)
-    level_data = levels[level]
-    hp = level_data["hp"]
-    # Game setup:
-    playing = True
-    hitboxes = []
-    frames = pygame.time.Clock()
-    score = 0
-    clicks = 0
-    miss = 0
-    start = time.time()
-
-    pygame.time.set_timer(target_event, level_data["timer"])
-    
-    while playing:
-        frames.tick(60)
-        click = False
-        mouse_position = pygame.mouse.get_pos()
-        time_elapse = time.time() - start
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                playing = False
-                break
-            if event.type == target_event:
-                x = random.randint(target_padding,width-target_padding)
-                y = random.randint(sc_height + target_padding,
-                height-target_padding)
-                hitbox = Target(x,y, level_data)
-                hitboxes.append(hitbox)
-            
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                click = True
-                clicks += 1
-
-        for hitbox in hitboxes[:]:
-            hitbox.update_size()
-            if hitbox.size <= 0:
-                hitboxes.remove(hitbox)
-                miss += 1
-            
-            if click and hitbox.hitbox_hit(mouse_position[0], mouse_position[1]):
-                hitboxes.remove(hitbox)
-                score += 1
-        if miss >= hp:
-            game_over_screen(window, score, clicks, time_elapse)
-            playing = False
-        draw_hitboxes(window, hitboxes)
-        scorecard(window, time_elapse, score, miss, level_data)
-        pygame.display.update()
-    
-    pygame.quit()
-
-
+    while True:
+        level_number = level_select_screen(window)
+        level_data = levels[level_number]
+        
+        won, score, clicks, elapsed_time = play_level(window, level_number, level_data)
+        
+        result = game_over_screen(window, score, clicks, elapsed_time, won)
+        if result == "exit":
+            pygame.quit()
+            exit()
 if __name__ == "__main__":
     main()
