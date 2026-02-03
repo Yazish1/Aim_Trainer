@@ -4,6 +4,7 @@ import math
 import pygame
 pygame.init()
 
+# Global variables
 levels = {
     1: {"hp": 20, "timer": 700, "max_size": 32, "growth_rate": 0.2},
     2: {"hp": 20, "timer": 650, "max_size": 30, "growth_rate": 0.3},
@@ -22,7 +23,11 @@ pygame.display.set_caption("Aim Train")
 target_event = pygame.USEREVENT
 target_padding = 20
 
+
 class Target:
+    """
+    Hitbox generating class, contains logic for how the hitbox should work and collision logic when hit with mouse button press.
+    """
     color = "red"
     secondary_color = "white"
 
@@ -57,6 +62,13 @@ class Target:
             return False
 
 def level_select_screen(window):
+    """
+    Display the level selection screen and render clickable level buttons.
+
+    The screen shows a centered title, four vertically centered level buttons,
+    and an ESC button option.
+    """
+
     window.fill("#0f172a")
     title_font = pygame.font.SysFont("Arial", 48, bold=True)
     info_font = pygame.font.SysFont("Arial", 30)
@@ -130,6 +142,13 @@ def draw_hitboxes(window, hitboxes):
         hitbox.draw(window)
 
 def play_level(window, level_num, level_data):
+        """
+        Run the main gameplay loop for the selected level.
+
+        Returns True if the player wins the level, otherwise False when
+        the game ends due to missed targets or exit.
+        """
+
         # Chosen level:
         hp = level_data["hp"]
         timer = level_data["timer"]
@@ -145,6 +164,7 @@ def play_level(window, level_num, level_data):
 
         pygame.time.set_timer(target_event, timer)
         
+        # Loop will handle target generation, time management, exits and win or loss.
         while playing:
             frames.tick(60)
             click = False
@@ -187,6 +207,13 @@ def play_level(window, level_num, level_data):
             pygame.display.update()
         
 def game_over_screen(window, score, clicks, elapsed_t, won=False):
+    """
+    Display the game over screen.
+
+    Shows a win or loss message based on the game result and allows the
+    player to return to the level select screen or exit the game.
+    """
+
     window.fill("#0f172a")
     title_font = pygame.font.SysFont("Arial", 48, bold=True)
     info_font = pygame.font.SysFont("Arial", 22)
@@ -218,6 +245,9 @@ def game_over_screen(window, score, clicks, elapsed_t, won=False):
                     return "level_select"
 
 def main():
+    """
+    Gameplay logic, controls flow of the game and decides whether to continue or exit the game.
+    """
     while True:
         level_number = level_select_screen(window)
         level_data = levels[level_number]
